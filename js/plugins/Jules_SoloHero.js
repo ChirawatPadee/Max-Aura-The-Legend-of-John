@@ -54,14 +54,14 @@
  * @text Attack Boost %
  * @type number
  * @desc Increase Attack by this % when solo.
- * @default 20
+ * @default 30
  *
  * @param defBoost
  * @parent --- Stats ---
  * @text Defense Boost %
  * @type number
  * @desc Increase Defense by this % when solo.
- * @default 20
+ * @default 30
  *
  * @param spdBoost
  * @parent --- Stats ---
@@ -93,7 +93,7 @@
  * @text Kill Heal HP %
  * @type number
  * @desc % of Max HP restored on kill.
- * @default 10
+ * @default 15
  *
  * @param killHealMp
  * @parent --- Sustain ---
