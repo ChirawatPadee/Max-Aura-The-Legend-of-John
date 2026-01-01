@@ -1,65 +1,62 @@
 /*:
  * @target MZ
- * @plugindesc [v9.0 Extreme] Just Guard: สุ่มความเร็ว 0.01วิ - 1วิ (ยากระดับนรก)
+ * @plugindesc [v9.1 Fixed] Just Guard: Fixed 0 Dmg & Tuned Speed (x1.2 Slower)
  * @author Plugin Maker
  * @help
  * ----------------------------------------------------------------------------
- * MaxAura_JustGuard.js [v9.0 Extreme Chaos]
+ * MaxAura_JustGuard.js [v9.1 Fixed]
  * ----------------------------------------------------------------------------
- * รายละเอียด:
- * ระบบ Just Guard ที่ปรับช่วงเวลาสุ่มให้กว้างและยากที่สุดตามคำขอ
+ * Patch Notes:
+ * 1. Fixed Damage Issue: Player now takes TRUE 0 damage on Perfect Parry.
+ * 2. Speed Adjustment: Overall animation speed is 1.2x slower (easier/fairer).
  *
- * การคำนวณเวลา (60 Frames = 1 Second):
- * - Min Duration: 1 Frame (ประมาณ 0.016 วินาที -> เร็วสุดขีด)
- * - Max Duration: 60 Frames (1.0 วินาที -> ช้าปกติ)
- *
- * ความท้าทาย:
- * ในการ Parry แต่ละครั้ง ระบบจะสุ่มความเร็วของวงแหวน
- * คุณอาจจะเจอลูกบอลที่พุ่งมาใน 0.01 วิ หรือลอยมา 1 วิ
- * ต้องใช้ปฏิกิริยาตอบสนองระดับสูง!
+ * Details:
+ * - System generates random speed between Min and Max frames.
+ * - Multiplier x1.2 is applied to the final result to slow it down.
+ * - Perfect Parry = 0 Damage + Stun Enemy + Visual FX.
  *
  * ----------------------------------------------------------------------------
  * @param --- Game Settings ---
- * * @param StunStateId
- * @text ID สถานะ Stun
- * @desc ID สถานะที่จะยัดใส่ศัตรู (Default: 13)
+ * @param StunStateId
+ * @text ID Status Stun
+ * @desc ID of the state to apply to the enemy on perfect guard. (Default: 13)
  * @type state
  * @default 13
  *
  * @param MinDuration
- * @text ความเร็วสูงสุด (เฟรม)
- * @desc เร็วสุดที่วงแหวนจะหด (1 เฟรม = 0.016 วิ). ห้ามใส่ต่ำกว่า 1
+ * @text Max Speed (Frames)
+ * @desc The fastest the ring can shrink (Base value). 1 Frame = Extremely fast.
  * @type number
  * @default 1
  *
  * @param MaxDuration
- * @text ความเร็วต่ำสุด (เฟรม)
- * @desc ช้าสุดที่วงแหวนจะหด (60 เฟรม = 1.0 วิ)
+ * @text Min Speed (Frames)
+ * @desc The slowest the ring can shrink (Base value). 60 Frames = 1 Second.
  * @type number
  * @default 60
  *
  * @param --- Visual Button ---
  * @param PromptX
- * @text ตำแหน่งปุ่ม X
- * @desc กลางจอ = 640
+ * @text Button X Position
+ * @desc Center X = 640
  * @type number
  * @default 640
  *
  * @param PromptY
- * @text ตำแหน่งปุ่ม Y
- * @desc กลางจอ = 360 (หรือ 320)
+ * @text Button Y Position
+ * @desc Center Y = 360 (or 320)
  * @type number
  * @default 320
  *
  * @param --- Audio & FX ---
  * @param ParrySound
- * @text เสียง Perfect Parry
+ * @text Perfect Parry Sound
  * @type file
  * @dir audio/se
  * @default Sword2
  *
  * @param FailSound
- * @text เสียงเมื่อกดพลาด
+ * @text Fail Sound
  * @type file
  * @dir audio/se
  * @default Buzzer1
@@ -76,7 +73,6 @@
         stunStateId: Number(parameters['StunStateId'] || 13),
         promptX: Number(parameters['PromptX'] || 640),
         promptY: Number(parameters['PromptY'] || 320),
-        // ป้องกันค่า min ต่ำกว่า 1 (เพราะ 0 จะทำให้บั๊ก)
         minDur: Math.max(1, Number(parameters['MinDuration'] || 1)), 
         maxDur: Number(parameters['MaxDuration'] || 60),
         parrySe: String(parameters['ParrySound'] || 'Sword2'),
@@ -124,7 +120,7 @@
             ctx.lineWidth = 6;
             ctx.strokeStyle = '#ffffff';
             
-            // วาดลายเส้นประเพื่อให้เห็นการหมุนชัดเจน
+            // Draw Dashed Line
             ctx.beginPath();
             ctx.arc(center, center, radius, 0, 1.5 * Math.PI);
             ctx.stroke();
@@ -145,7 +141,7 @@
             this.rotation += 0.2 + (1.0 - progress) * 0.3;
 
             // Opacity Logic
-            // ถ้าเฟรมน้อยมาก (เร็วจัด) ไม่ต้อง Fade Out เพราะจะมองไม่ทันอยู่แล้ว
+            // If very fast, don't fade out completely
             if ($gameTemp._jgMaxDuration > 10 && progress < 0.15) {
                 this.opacity = 180; 
             } else {
@@ -286,16 +282,17 @@
             
             $gameTemp.clearJustGuardState();
             
-            // --- EXTREME RANDOMIZER ---
-            // สุ่มค่าระหว่าง 1 (0.01s) ถึง 60 (1.0s)
-            const randomDur = Math.floor(Math.random() * (config.maxDur - config.minDur + 1)) + config.minDur;
+            // --- EXTREME RANDOMIZER (TUNED) ---
+            // 1. Calculate random Base duration
+            let randomDur = Math.floor(Math.random() * (config.maxDur - config.minDur + 1)) + config.minDur;
             
+            // 2. TUNE SPEED: Slow down by 20% (x1.2) as requested
+            randomDur = Math.floor(randomDur * 1.2); 
+
             $gameTemp._jgActive = true;
             $gameTemp._jgMaxDuration = randomDur;
             $gameTemp._jgTimer = randomDur;
             $gameTemp._jgVisualRequest = 'start';
-            
-            // console.log("Speed:", randomDur); // ไว้ดู log ความเร็ว
             
             this._waitMode = 'justGuard';
         }
@@ -317,8 +314,8 @@
             }
 
             // Timeout
-            // ถ้าความเร็วสูงมาก (น้อยกว่า 5 เฟรม) เราต้องยอมให้ติดลบได้นิดหน่อยไม่งั้นกดไม่ทัน
-            const gracePeriod = ($gameTemp._jgMaxDuration < 5) ? -10 : -5;
+            // If super fast, allow slightly more negative frames (grace period)
+            const gracePeriod = ($gameTemp._jgMaxDuration < 6) ? -10 : -5;
 
             if ($gameTemp._jgTimer <= gracePeriod) { 
                 $gameTemp._jgActive = false;
@@ -333,9 +330,9 @@
         const timer = $gameTemp._jgTimer;
         
         // Window Adjustment
-        // ถ้ามาเร็วมาก (<= 10 เฟรม) ให้ Window กว้างหน่อย (+/- 6) เพื่อความยุติธรรม
-        // ถ้ามาช้า (ปกติ) ให้ Window แคบ (+/- 4)
-        const isSuperFast = $gameTemp._jgMaxDuration <= 10;
+        // Fast Ring = Easier Window (+/- 6)
+        // Slow Ring = Strict Window (+/- 4)
+        const isSuperFast = $gameTemp._jgMaxDuration <= 12;
         const perfectWindow = isSuperFast ? 6 : 4;
         
         if (Math.abs(timer) <= perfectWindow) {
@@ -353,38 +350,55 @@
     };
 
     // ------------------------------------------------------------------------
-    // 3. Apply Result
+    // 3. Apply Result (DAMAGE & EFFECTS FIX)
     // ------------------------------------------------------------------------
 
+    // FIX PART 1: Intercept Damage Calculation BEFORE it happens
+    // This ensures HP is not lost if Parry is Perfect.
+    const _Game_Action_makeDamageValue = Game_Action.prototype.makeDamageValue;
+    Game_Action.prototype.makeDamageValue = function(target, critical) {
+        const value = _Game_Action_makeDamageValue.call(this, target, critical);
+        
+        // If Parry was Perfect, override damage to 0 immediately
+        if (target.isActor() && this.subject().isEnemy() && $gameTemp._jgResult === 'perfect') {
+            return 0;
+        }
+        
+        return value;
+    };
+
+    // FIX PART 2: Apply Status Effects & Visuals
     const _Game_Action_apply = Game_Action.prototype.apply;
     Game_Action.prototype.apply = function(target) {
-        _Game_Action_apply.call(this, target);
+        _Game_Action_apply.call(this, target); // Original apply runs (damage is already 0 thanks to function above)
         
+        // Visuals and Logic for Perfect Block
         const result = target.result();
         
-        if (target.isActor() && result.isHit() && result.hpDamage > 0 && this.subject().isEnemy()) {
+        if (target.isActor() && this.subject().isEnemy()) {
             
             const jgResult = $gameTemp._jgResult;
             
             if (jgResult === 'perfect') {
-                // No Damage
+                // Force result flags to show "Hit" but 0 damage
+                // (Optional: result.hpDamage is already 0, but we can reinforce it)
                 result.hpDamage = 0;
                 result.mpDamage = 0;
                 result.tpDamage = 0;
                 
-                // Stun (ID 13)
+                // Add Stun to Enemy (ID 13)
                 const subject = this.subject();
                 if (subject && subject.isAlive()) {
                     subject.addState(config.stunStateId);
                 }
 
-                // FX
+                // FX: Sound & Shake
                 AudioManager.playSe({ name: config.parrySe, volume: 100, pitch: 120, pan: 0 });
                 target.requestEffect('whiten');
                 $gameScreen.startShake(5, 5, 10);
                 
                 if (SceneManager._scene._logWindow) {
-                     SceneManager._scene._logWindow.addText(`\\C[10]PERFECT BLOCK!\\C[0]`);
+                     SceneManager._scene._logWindow.addText(`\\C[10]PERFECT BLOCK! (0 Dmg)\\C[0]`);
                 }
             } 
         }
